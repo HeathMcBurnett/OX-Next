@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole
+  firstName String?
+  lastName  String?
+  avatarUrl String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  artistProfile ArtistProfile?
+  subscriptions Subscription[]
+  postLikes     PostLike[]
+  postComments  PostComment[]
+  messages      Message[]
+  teamMember    TeamMember?
+
+  @@map("users")
+}
+
+model ArtistProfile {
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  username         String  @unique
+  displayName      String
+  bannerUrl        String?
+  story            String?
+  location         String?
+  cause            String?
+  subscriptionPrice Float
+  subscriberCount  Int     @default(0)
+  isVerified       Boolean @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts         Post[]
+  subscriptions Subscription[]
+  teamMembers   TeamMember[]
+  messages      Message[]
+
+  @@map("artist_profiles")
+}
+
+model Post {
+  id          String      @id @default(cuid())
+  artistId    String
+  title       String?
+  content     String
+  contentType ContentType
+  mediaUrl    String?
+  likeCount   Int         @default(0)
+  commentCount Int        @default(0)
+  isPublished Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  artist   ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  likes    PostLike[]
+  comments PostComment[]
+
+  @@map("posts")
+}
+
+model Subscription {
+  id              String            @id @default(cuid())
+  fanId           String
+  artistId        String
+  status          SubscriptionStatus
+  amount          Float
+  nextBillingDate DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  fan    User          @relation(fields: [fanId], references: [id], onDelete: Cascade)
+  artist ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@unique([fanId, artistId])
+  @@map("subscriptions")
+}
+
+model TeamMember {
+  id          String   @id @default(cuid())
+  artistId    String
+  managerId   String   @unique
+  permissions Json?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  artist  ArtistProfile @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  manager User          @relation(fields: [managerId], references: [id], onDelete: Cascade)
+
+  @@map("team_members")
+}
+
+model PostLike {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("post_likes")
+}
+
+model PostComment {
+  id      String @id @default(cuid())
+  postId  String
+  userId  String
+  content String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("post_comments")
+}
+
+model Message {
+  id       String @id @default(cuid())
+  fromId   String
+  toId     String?
+  subject  String?
+  content  String
+  isRead   Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  from User @relation(fields: [fromId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// Enums
+enum UserRole {
+  FAN
+  ARTIST
+  MANAGER
+  ADMIN
+}
+
+enum ContentType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+} 
